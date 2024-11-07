@@ -123,19 +123,14 @@ def colmap_to_pixelsplat_all(
             fx, fy = K[0, 0].item(), K[1, 1].item()
             cx, cy = K[0, 2].item(), K[1, 2].item()
             
-            # Convert extrinsics from camera-to-world (c2w) to world-to-camera (w2c)
-            w2c = np.linalg.inv(c2w.cpu().numpy())
-            # det_rotation = np.linalg.det(w2c[:3, :3])
-            # det_rotation = torch.tensor(det_rotation)
-            # print("det(rotation) is 1? :", torch.isclose(det_rotation, torch.tensor(1.0), atol=1e-5)) => True
-            rotation_matrix = w2c[:3, :3].flatten()  # 9 elements
-            translation_vector = w2c[:3, 3]  # 3 elements
+            # MVSplat은 w2c를 받음. 따라서 c2w를 w2c로 변환해야 함.
+            w2c = np.linalg.inv(c2w.cpu().numpy()) # 4x4 matrix
+            extrinsic_matrix = w2c[:3,:].flatten()  # flatten 3x4 matrix to 12 values
 
             # Set camera_data for current image with proper alignment
             camera_data[idx, :4] = torch.tensor([fx, fy, cx, cy], dtype=torch.float32)  # Intrinsics
             camera_data[idx, 4:6] = torch.tensor([0, 0], dtype=torch.float32)  # Padding
-            camera_data[idx, 6:15] = torch.tensor(rotation_matrix, dtype=torch.float32)  # Rotation matrix
-            camera_data[idx, 15:18] = torch.tensor(translation_vector, dtype=torch.float32)  # Translation vector
+            camera_data[idx, 6:18] = torch.tensor(extrinsic_matrix, dtype=torch.float32) 
 
         # Save to .torch file
         torch_file = output_path / f"{str(torch_file_idx).zfill(6)}.torch"
